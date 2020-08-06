@@ -1,6 +1,19 @@
 module ActionCable
   module Channel
     class Base
+      def perform_action(data)
+        action = extract_action(data)
+
+        if processable_action?(action)
+          payload = { channel_class: self.class.name, action: action, data: data }
+          ActiveSupport::Notifications.instrument('perform_action.action_cable', notification_payload(action).merge(payload)) do
+            dispatch_action(action, data)
+          end
+        else
+          logger.error "Unable to process #{action_signature(action, data)}"
+        end
+      end
+
       def subscribe_to_channel
         ActiveSupport::Notifications.instrument('subscribe.action_cable', notification_payload('subscribe')) do
           run_callbacks :subscribe do
